@@ -140,3 +140,74 @@ contract Nerdian {
     mapping(address => uint256) public operatorLastAction;
 
     mapping(bytes32 => bool) public tagKnown;
+    mapping(bytes32 => uint256) public tagUsageCount;
+
+    mapping(bytes32 => uint256) public auxScalar;
+
+    uint64 public nextKernelId;
+
+    uint256 public constant MAX_TAG_UTF8 = 96;
+    uint256 public constant MAX_BATCH = 41;
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert NrdSpectralBandLocked();
+        _;
+    }
+
+    modifier onlyOracle() {
+        if (msg.sender != mathOracle) revert NrdOperatorNotInscribed(msg.sender);
+        _;
+    }
+
+    modifier onlyGuardian() {
+        if (msg.sender != guardian) revert NrdOperatorNotInscribed(msg.sender);
+        _;
+    }
+
+    modifier whenNotPaused() {
+        if (paused) revert NrdVaultHalt();
+        _;
+    }
+
+    modifier nonReentrant() {
+        if (_reentrancyStatus == _ENTERED) revert NrdPurseDrained();
+        _reentrancyStatus = _ENTERED;
+        _;
+        _reentrancyStatus = _NOT_ENTERED;
+    }
+
+    constructor(
+        address stakeToken_,
+        address treasury_,
+        address mathOracle_,
+        address guardian_,
+        address owner_,
+        uint256 minOperatorStake_,
+        uint256 unstakeDelaySeconds_,
+        uint256 globalComplexityCap_,
+        uint16 protocolFeeBps_,
+        uint256 epochCooldownSeconds_
+    ) {
+        if (stakeToken_ == address(0)) revert NrdTransferBlocked(stakeToken_, address(0), address(0));
+        if (treasury_ == address(0)) revert NrdTransferBlocked(IERC20Minimal(stakeToken_), treasury_, treasury_);
+        if (mathOracle_ == address(0)) revert NrdOperatorNotInscribed(mathOracle_);
+        if (guardian_ == address(0)) revert NrdOperatorNotInscribed(guardian_);
+        if (owner_ == address(0)) revert NrdOperatorNotInscribed(owner_);
+        if (protocolFeeBps_ > MAX_FEE_BPS) revert NrdBpsOutOfLane(protocolFeeBps_, MAX_FEE_BPS);
+
+        stakeToken = IERC20Minimal(stakeToken_);
+        treasury = treasury_;
+        mathOracle = mathOracle_;
+        guardian = guardian_;
+        owner = owner_;
+        pendingOwner = address(0);
+
+        minOperatorStake = minOperatorStake_;
+        unstakeDelaySeconds = unstakeDelaySeconds_;
+        globalComplexityCap = globalComplexityCap_;
+        protocolFeeBps = protocolFeeBps_;
+        epochCooldownSeconds = epochCooldownSeconds_;
+
+        currentEpoch = 1;
+        lastEpochBump = uint64(block.timestamp);
+        OPENING_EPOCH = currentEpoch;
