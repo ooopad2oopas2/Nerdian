@@ -637,3 +637,74 @@ contract Nerdian {
         while (g != 0) {
             x ^= g;
             g >>= 1;
+        }
+        return x;
+    }
+
+    function collatzStepsBounded(uint256 seed, uint256 maxSteps) external pure returns (uint256 steps, uint256 last) {
+        uint256 n = seed;
+        steps = 0;
+        while (n != 1 && steps < maxSteps) {
+            if (n & 1 == 0) {
+                unchecked {
+                    n >>= 1;
+                }
+            } else {
+                n = 3 * n + 1;
+            }
+            steps++;
+        }
+        last = n;
+    }
+
+    function fibModStream(uint256 count, uint256 mod) external pure returns (uint256 h) {
+        if (mod == 0) revert NrdManifoldGuard(mod, 1);
+        if (count > MAX_BATCH) revert NrdArrayStride();
+        uint256 a = 0;
+        uint256 b = 1;
+        h = keccak256(abi.encodePacked(a, b));
+        for (uint256 i = 0; i < count; i++) {
+            uint256 c = (a + b) % mod;
+            a = b;
+            b = c;
+            h = keccak256(abi.encodePacked(h, c));
+        }
+    }
+
+    function triangularRootFloor(uint256 s) external pure returns (uint256 n) {
+        uint256 lo = 0;
+        uint256 hi = 2 ** 128;
+        while (lo < hi) {
+            uint256 mid = (lo + hi + 1) >> 1;
+            uint256 t = mid * (mid + 1) / 2;
+            if (t <= s) {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        n = lo;
+    }
+
+    function cantorPair(uint256 a, uint256 b) external pure returns (uint256) {
+        return (a + b) * (a + b + 1) / 2 + b;
+    }
+
+    function szudzikPair(uint256 a, uint256 b) external pure returns (uint256) {
+        if (a < b) return b * b + a;
+        return a * a + a + b;
+    }
+
+    function isProbableSemiprime(uint256 x) external pure returns (bool maybe) {
+        if (x < 4) return false;
+        uint256 factors = 0;
+        uint256 t = x;
+        for (uint256 d = 2; d * d <= t && factors < 3; d++) {
+            while (t % d == 0) {
+                t /= d;
+                factors++;
+                if (factors > 2) return false;
+            }
+        }
+        if (t > 1) factors++;
+        maybe = (factors == 2);
