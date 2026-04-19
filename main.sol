@@ -424,3 +424,74 @@ contract Nerdian {
         if (to == address(0)) revert NrdTransferBlocked(token, address(this), to);
         IERC20Minimal t = IERC20Minimal(token);
         bool ok = t.transfer(to, amount);
+        if (!ok) revert NrdTransferBlocked(token, address(this), to);
+    }
+
+    /* --- pure / view helpers (symbolic worksheet) --- */
+    function foldComplexity(uint64[] calldata weights, uint64[] calldata exponents)
+        external
+        pure
+        returns (uint256 acc)
+    {
+        if (weights.length != exponents.length) revert NrdArrayStride();
+        if (weights.length > MAX_BATCH) revert NrdArrayStride();
+        acc = 0;
+        for (uint256 i = 0; i < weights.length; i++) {
+            uint256 term = uint256(weights[i]);
+            uint256 e = uint256(exponents[i]);
+            if (e > 7) revert NrdManifoldGuard(e, 7);
+            uint256 local = term;
+            for (uint256 k = 1; k < e; k++) {
+                local *= term;
+            }
+            acc = NrdMathBits.saturatingAdd(acc, local);
+        }
+    }
+
+    function hilbertSlot(uint256 dimBits, uint256 x, uint256 y) external pure returns (uint256 slot) {
+        if (dimBits == 0 || dimBits > 32) revert NrdHilbertCursorOverflow(dimBits, 32);
+        uint256 maxC = (uint256(1) << dimBits) - 1;
+        if (x > maxC || y > maxC) revert NrdHilbertCursorOverflow(x, maxC);
+
+        slot = 0;
+        for (uint256 s = dimBits; s > 0; ) {
+            unchecked {
+                s -= 1;
+            }
+            uint256 rx = (x >> s) & 1;
+            uint256 ry = (y >> s) & 1;
+            slot <<= 2;
+            slot |= (rx * 3) ^ ry;
+            if (ry == 0) {
+                if (rx == 1) {
+                    x = maxC - x;
+                    y = maxC - y;
+                }
+                (x, y) = (y, x);
+            }
+        }
+    }
+
+    function domainDigest(bytes32 kernelSalt, uint64 kernelId, address operatorHint)
+        external
+        view
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(DOMAIN_SALT, kernelSalt, kernelId, operatorHint, GENESIS_OPERATOR, OPENING_EPOCH));
+    }
+
+    function rollingBatchHash(bytes32 seed, uint256[] calldata limbs) external pure returns (bytes32 h) {
+        if (limbs.length > MAX_BATCH) revert NrdArrayStride();
+        h = seed;
+        for (uint256 i = 0; i < limbs.length; i++) {
+            h = keccak256(abi.encodePacked(h, limbs[i]));
+        }
+    }
+
+    function witnessGlue(uint64 kernelId, bytes32 left, bytes32 right) external view returns (bytes32) {
+        if (kernelId == 0 || kernelId >= nextKernelId) revert NrdKernelUnknown(kernelId);
+        return keccak256(abi.encodePacked(kernelWitness[kernelId], left, right, currentEpoch));
+    }
+
+    function complexityHeadroom() external view returns (uint256) {
+        if (globalComplexitySpent >= globalComplexityCap) return 0;
