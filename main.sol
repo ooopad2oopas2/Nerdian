@@ -69,3 +69,74 @@ library NrdMathBits {
         if (x & 0xFF00000000000000 == 0) {
             r += 8;
             x <<= 8;
+        }
+        if (x & 0xF000000000000000 == 0) {
+            r += 4;
+            x <<= 4;
+        }
+        if (x & 0xC000000000000000 == 0) {
+            r += 2;
+            x <<= 2;
+        }
+        if (x & 0x8000000000000000 == 0) {
+            r += 1;
+        }
+    }
+
+    function saturatingAdd(uint256 a, uint256 b) internal pure returns (uint256) {
+        unchecked {
+            uint256 c = a + b;
+            if (c < a) return type(uint256).max;
+            return c;
+        }
+    }
+}
+
+contract Nerdian {
+    using NrdMathBits for uint256;
+    using NrdMathBits for uint64;
+
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
+    bytes32 private immutable DOMAIN_SALT;
+    address private immutable GENESIS_OPERATOR;
+    uint64 private immutable OPENING_EPOCH;
+
+    address public owner;
+    address public pendingOwner;
+    address public treasury;
+    address public mathOracle;
+    address public guardian;
+
+    IERC20Minimal public stakeToken;
+
+    bool public paused;
+    uint256 private _reentrancyStatus;
+
+    uint64 public currentEpoch;
+    uint64 public lastEpochBump;
+    uint256 public epochCooldownSeconds;
+
+    uint16 public protocolFeeBps;
+    uint16 public constant MAX_FEE_BPS = 317;
+
+    uint256 public globalComplexityCap;
+    uint256 public globalComplexitySpent;
+
+    uint256 public minOperatorStake;
+    uint256 public unstakeDelaySeconds;
+
+    mapping(address => uint256) public operatorStake;
+    mapping(address => uint256) public pendingUnstake;
+    mapping(address => uint256) public unstakeUnlockAt;
+
+    mapping(uint64 => bytes32) public kernelWitness;
+    mapping(uint64 => uint128) public kernelBudget;
+    mapping(uint64 => bool) public kernelSealed;
+    mapping(uint64 => uint64) public kernelEpochOfBirth;
+
+    mapping(address => bool) public isOperator;
+    mapping(address => uint256) public operatorLastAction;
+
+    mapping(bytes32 => bool) public tagKnown;
