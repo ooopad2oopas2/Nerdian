@@ -708,3 +708,74 @@ contract Nerdian {
         }
         if (t > 1) factors++;
         maybe = (factors == 2);
+    }
+
+    function eulerTotientSmall(uint256 n) external pure returns (uint256 phi) {
+        if (n == 0) return 0;
+        phi = n;
+        uint256 t = n;
+        for (uint256 p = 2; p * p <= t; p++) {
+            if (t % p == 0) {
+                while (t % p == 0) {
+                    t /= p;
+                }
+                phi -= phi / p;
+            }
+        }
+        if (t > 1) phi -= phi / t;
+    }
+
+    function jacobiSymbol(uint256 a, uint256 n) external pure returns (int256) {
+        if (n == 0 || (n & 1) == 0) revert NrdManifoldGuard(n, 1);
+        int256 j = 1;
+        uint256 aa = a % n;
+        uint256 nn = n;
+        while (aa != 0) {
+            while ((aa & 1) == 0) {
+                aa >>= 1;
+                if ((nn & 7) == 3 || (nn & 7) == 5) j = -j;
+            }
+            (aa, nn) = (nn, aa);
+            if ((aa & 3) == 3 && (nn & 3) == 3) j = -j;
+            aa %= nn;
+        }
+        if (nn == 1) return j;
+        return 0;
+    }
+
+    function ramanujanTauSmall(uint256 n) external pure returns (int256) {
+        if (n > 23) revert NrdManifoldGuard(n, 23);
+        int256[24] memory tbl = [
+            int256(0),
+            1,
+            -24,
+            252,
+            -1472,
+            4830,
+            -6048,
+            -16744,
+            84480,
+            -113643,
+            -115920,
+            534612,
+            -370944,
+            -1228896,
+            3627628,
+            1617870,
+            -10749952,
+            9472900,
+            6842292,
+            -29211840,
+            -52878671,
+            64260000,
+            38731776,
+            -545607520
+        ];
+        return tbl[n];
+    }
+
+    function partitionPSmall(uint256 n) external pure returns (uint256) {
+        if (n > 40) revert NrdManifoldGuard(n, 40);
+        uint256[41] memory tbl = [
+            uint256(1),
+            1,
