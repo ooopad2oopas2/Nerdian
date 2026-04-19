@@ -850,3 +850,74 @@ contract Nerdian {
         uint256 a = num;
         uint256 b = den;
         for (uint256 s = 0; s < steps && b != 0; s++) {
+            uint256 t = a / b;
+            uint256 p2 = t * p1 + p0;
+            uint256 q2 = t * q1 + q0;
+            (a, b) = (b, a % b);
+            (p0, p1) = (p1, p2);
+            (q0, q1) = (q1, q2);
+        }
+        pOut = p1;
+        qOut = q1;
+    }
+
+    function ackermannBounded(uint256 m, uint256 n, uint256 gasCap) external pure returns (uint256 v) {
+        if (m > 3 || n > 12) revert NrdManifoldGuard(m + n, 15);
+        uint256 g = gasCap;
+        if (m == 0) return n + 1;
+        if (m == 1) return n + 2;
+        if (m == 2) return 2 * n + 3;
+        if (m == 3) {
+            v = 5;
+            for (uint256 i = 0; i < n && g > 0; i++) {
+                v = (v << 1) + 3;
+                g--;
+            }
+            return v;
+        }
+        revert NrdManifoldGuard(m, 3);
+    }
+
+    function primePiUpper(uint256 x) external pure returns (uint256) {
+        if (x < 2) return 0;
+        uint256 num = x;
+        uint256 den = 9;
+        uint256 lg = 0;
+        uint256 t = x;
+        while (t > 1) {
+            t >>= 1;
+            lg++;
+        }
+        return (num * lg) / den + 3;
+    }
+
+    function harmonicPartial(uint256 n) external pure returns (uint256 scaled) {
+        if (n > 88) revert NrdManifoldGuard(n, 88);
+        uint256 num = 0;
+        uint256 den = 1;
+        for (uint256 i = 1; i <= n; i++) {
+            num = num * i + den;
+            den *= i;
+            uint256 g = _gcd(num, den);
+            num /= g;
+            den /= g;
+        }
+        scaled = (num * 1e18) / den;
+    }
+
+    function _gcd(uint256 a, uint256 b) private pure returns (uint256) {
+        while (b != 0) {
+            uint256 t = a % b;
+            a = b;
+            b = t;
+        }
+        return a;
+    }
+
+    function digitRoot(uint256 x) external pure returns (uint256) {
+        if (x == 0) return 0;
+        uint256 r = x % 9;
+        return r == 0 ? 9 : r;
+    }
+
+    function sqrtFloor(uint256 y) external pure returns (uint256 z) {
