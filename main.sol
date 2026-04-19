@@ -779,3 +779,74 @@ contract Nerdian {
         uint256[41] memory tbl = [
             uint256(1),
             1,
+            2,
+            3,
+            5,
+            7,
+            11,
+            15,
+            22,
+            30,
+            42,
+            56,
+            77,
+            101,
+            135,
+            176,
+            231,
+            297,
+            385,
+            490,
+            627,
+            792,
+            1002,
+            1255,
+            1575,
+            1958,
+            2436,
+            3010,
+            3718,
+            4555,
+            5604,
+            6842,
+            8349,
+            10143,
+            12310,
+            14883,
+            17977,
+            21637,
+            26015,
+            31185,
+            37338
+        ];
+        return tbl[n];
+    }
+
+    function vanDerCorput(uint256 bits, uint256 index) external pure returns (uint256) {
+        if (bits > 64) revert NrdHilbertCursorOverflow(bits, 64);
+        uint256 x = index;
+        uint256 denom = 1 << bits;
+        uint256 num = 0;
+        uint256 b = bits;
+        while (b > 0) {
+            num <<= 1;
+            num |= (x & 1);
+            x >>= 1;
+            b--;
+        }
+        return (num << bits) / denom;
+    }
+
+    function continuedFracConvergent(uint256 num, uint256 den, uint256 steps)
+        external
+        pure
+        returns (uint256 pOut, uint256 qOut)
+    {
+        if (den == 0) revert NrdManifoldGuard(den, 1);
+        uint256 p0 = 0;
+        uint256 p1 = 1;
+        uint256 q0 = 1;
+        uint256 q1 = 0;
+        uint256 a = num;
+        uint256 b = den;
+        for (uint256 s = 0; s < steps && b != 0; s++) {
