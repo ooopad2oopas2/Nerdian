@@ -566,3 +566,74 @@ contract Nerdian {
             uint256 c = (a + b) % mod;
             a = b;
             b = c;
+        }
+        return b;
+    }
+
+    function sternBrocotDepth(uint256 p, uint256 q) external pure returns (uint256 depth) {
+        if (q == 0) revert NrdManifoldGuard(q, 1);
+        depth = 0;
+        while (p != 1 || q != 1) {
+            if (p > q) {
+                p -= q;
+            } else {
+                q -= p;
+            }
+            depth++;
+            if (depth > 512) revert NrdHilbertCursorOverflow(depth, 512);
+        }
+    }
+
+    function mertensWindow(uint256 upTo) external pure returns (int256 m) {
+        if (upTo > 241) revert NrdRiemannWindowClosed();
+        int256 acc = 0;
+        for (uint256 n = 1; n <= upTo; n++) {
+            acc += int256(_mobiusSmall(n));
+        }
+        m = acc;
+    }
+
+    function _mobiusSmall(uint256 n) private pure returns (int256) {
+        if (n == 1) return 1;
+        uint256 sq = 0;
+        uint256 t = n;
+        uint256 primes = 0;
+        for (uint256 d = 2; d * d <= t; d++) {
+            if (t % d == 0) {
+                primes++;
+                while (t % d == 0) {
+                    t /= d;
+                    sq++;
+                    if (sq > 1) return 0;
+                }
+            }
+        }
+        if (t > 1) {
+            primes++;
+        }
+        if (primes % 2 == 0) return 1;
+        return -1;
+    }
+
+    function dilateUint(uint256 x, uint256 num, uint256 den) external pure returns (uint256) {
+        if (den == 0) revert NrdManifoldGuard(den, 1);
+        return (x * num) / den;
+    }
+
+    function popcount256(uint256 x) external pure returns (uint256 c) {
+        while (x != 0) {
+            x &= (x - 1);
+            c++;
+        }
+    }
+
+    function grayCode(uint256 x) external pure returns (uint256) {
+        return x ^ (x >> 1);
+    }
+
+    function inverseGray(uint256 g) external pure returns (uint256) {
+        uint256 x = g;
+        g >>= 1;
+        while (g != 0) {
+            x ^= g;
+            g >>= 1;
