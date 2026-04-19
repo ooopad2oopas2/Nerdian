@@ -353,3 +353,74 @@ contract Nerdian {
 
     function attestKernel(uint64 kernelId, bytes32 newRoot) external onlyOracle whenNotPaused {
         if (kernelId == 0 || kernelId >= nextKernelId) revert NrdKernelUnknown(kernelId);
+        if (kernelSealed[kernelId]) revert NrdKernelAlreadySealed(kernelId);
+        kernelWitness[kernelId] = newRoot;
+        emit NrdKernelAttested(kernelId, msg.sender, newRoot, currentEpoch);
+    }
+
+    function sealKernel(uint64 kernelId) external onlyOracle whenNotPaused {
+        if (kernelId == 0 || kernelId >= nextKernelId) revert NrdKernelUnknown(kernelId);
+        kernelSealed[kernelId] = true;
+    }
+
+    /* --- staking --- */
+    function commitStake(uint256 amount, uint64 kernelId) external whenNotPaused nonReentrant {
+        if (!isOperator[msg.sender]) revert NrdOperatorNotInscribed(msg.sender);
+        if (kernelId != 0 && (kernelId >= nextKernelId || kernelSealed[kernelId])) revert NrdKernelUnknown(kernelId);
+        if (amount == 0) revert NrdStakeBelowFloor(amount, 1);
+
+        uint256 bal = stakeToken.balanceOf(msg.sender);
+        if (bal < amount) revert NrdStakeBelowFloor(bal, amount);
+        uint256 alw = stakeToken.allowance(msg.sender, address(this));
+        if (alw < amount) revert NrdStakeBelowFloor(alw, amount);
+
+        bool ok = stakeToken.transferFrom(msg.sender, address(this), amount);
+        if (!ok) revert NrdTransferBlocked(address(stakeToken), msg.sender, address(this));
+
+        operatorStake[msg.sender] += amount;
+        if (operatorStake[msg.sender] < minOperatorStake) revert NrdStakeBelowFloor(operatorStake[msg.sender], minOperatorStake);
+
+        emit NrdStakeCommitted(msg.sender, amount, kernelId);
+        operatorLastAction[msg.sender] = block.timestamp;
+    }
+
+    function requestUnstake(uint256 amount) external whenNotPaused nonReentrant {
+        if (amount == 0) revert NrdStakeBelowFloor(amount, 1);
+        uint256 st = operatorStake[msg.sender];
+        if (st < amount) revert NrdStakeBelowFloor(st, amount);
+
+        operatorStake[msg.sender] = st - amount;
+        pendingUnstake[msg.sender] += amount;
+        unstakeUnlockAt[msg.sender] = block.timestamp + unstakeDelaySeconds;
+    }
+
+    function finalizeUnstake(uint64 kernelId) external whenNotPaused nonReentrant {
+        uint256 pend = pendingUnstake[msg.sender];
+        if (pend == 0) revert NrdPurseDrained();
+        if (block.timestamp < unstakeUnlockAt[msg.sender]) {
+            revert NrdCooldownStillWarm(unstakeUnlockAt[msg.sender]);
+        }
+
+        uint256 fee = (pend * uint256(protocolFeeBps)) / 10_000;
+        uint256 net = pend - fee;
+
+        pendingUnstake[msg.sender] = 0;
+        unstakeUnlockAt[msg.sender] = 0;
+
+        if (fee > 0) {
+            bool okFee = stakeToken.transfer(treasury, fee);
+            if (!okFee) revert NrdTransferBlocked(address(stakeToken), address(this), treasury);
+            emit NrdFeeSwept(address(stakeToken), treasury, fee);
+        }
+        bool okNet = stakeToken.transfer(msg.sender, net);
+        if (!okNet) revert NrdTransferBlocked(address(stakeToken), address(this), msg.sender);
+
+        emit NrdStakeReleased(msg.sender, net, kernelId);
+    }
+
+    /* --- rescue (tokens stuck, not stakeToken re-entrancy) --- */
+    function rescueERC20(address token, address to, uint256 amount) external onlyOwner nonReentrant {
+        if (token == address(stakeToken)) revert NrdTransferBlocked(token, address(this), to);
+        if (to == address(0)) revert NrdTransferBlocked(token, address(this), to);
+        IERC20Minimal t = IERC20Minimal(token);
+        bool ok = t.transfer(to, amount);
