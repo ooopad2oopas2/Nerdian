@@ -211,3 +211,74 @@ contract Nerdian {
         currentEpoch = 1;
         lastEpochBump = uint64(block.timestamp);
         OPENING_EPOCH = currentEpoch;
+
+        DOMAIN_SALT = keccak256("Nerdian.tensorSheaf.v7");
+        GENESIS_OPERATOR = owner_;
+
+        _reentrancyStatus = _NOT_ENTERED;
+        nextKernelId = 1;
+
+        auxScalar[keccak256("Nerdian.bootstrap.scalarA")] = 0x9E3779B97F4A7C15;
+        auxScalar[keccak256("Nerdian.bootstrap.scalarB")] = 0xC2B2AE3D27D4EB4F;
+    }
+
+    /* --- ownership (two-step) --- */
+    function transferOwnership(address next) external onlyOwner {
+        pendingOwner = next;
+    }
+
+    function acceptOwnership() external {
+        address p = pendingOwner;
+        if (p == address(0)) revert NrdSpectralBandLocked();
+        if (msg.sender != p) revert NrdOperatorNotInscribed(msg.sender);
+        address old = owner;
+        owner = p;
+        pendingOwner = address(0);
+        emit NrdOwnerRotor(old, owner);
+    }
+
+    function renounceOwnership() external onlyOwner {
+        owner = address(0);
+        pendingOwner = address(0);
+    }
+
+    /* --- admin surface --- */
+    function setTreasury(address next) external onlyOwner {
+        if (next == address(0)) revert NrdTransferBlocked(address(stakeToken), treasury, next);
+        address prev = treasury;
+        treasury = next;
+        emit NrdTreasuryNudged(prev, next);
+    }
+
+    function setMathOracle(address next) external onlyOwner {
+        if (next == address(0)) revert NrdOperatorNotInscribed(next);
+        address prev = mathOracle;
+        mathOracle = next;
+        emit NrdOracleRotated(prev, next);
+    }
+
+    function setGuardian(address next) external onlyOwner {
+        if (next == address(0)) revert NrdOperatorNotInscribed(next);
+        guardian = next;
+    }
+
+    function setProtocolFeeBps(uint16 bps) external onlyOwner {
+        if (bps > MAX_FEE_BPS) revert NrdBpsOutOfLane(bps, MAX_FEE_BPS);
+        protocolFeeBps = bps;
+    }
+
+    function setMinOperatorStake(uint256 v) external onlyOwner {
+        minOperatorStake = v;
+    }
+
+    function setUnstakeDelay(uint256 v) external onlyOwner {
+        unstakeDelaySeconds = v;
+    }
+
+    function setGlobalComplexityCap(uint256 v) external onlyOwner {
+        globalComplexityCap = v;
+    }
+
+    function setEpochCooldown(uint256 v) external onlyOwner {
+        epochCooldownSeconds = v;
+    }
