@@ -282,3 +282,74 @@ contract Nerdian {
     function setEpochCooldown(uint256 v) external onlyOwner {
         epochCooldownSeconds = v;
     }
+
+    function flipPause() external onlyGuardian {
+        paused = !paused;
+        emit NrdPauseFlipped(paused);
+    }
+
+    function writeAuxScalar(bytes32 key, uint256 value) external onlyOwner {
+        auxScalar[key] = value;
+        emit NrdAuxScalarWritten(key, value);
+    }
+
+    /* --- epoch rail --- */
+    function bumpEpoch() external onlyOracle whenNotPaused {
+        if (block.timestamp < uint256(lastEpochBump) + epochCooldownSeconds) {
+            revert NrdCooldownStillWarm(uint256(lastEpochBump) + epochCooldownSeconds);
+        }
+        uint64 old = currentEpoch;
+        unchecked {
+            currentEpoch += 1;
+        }
+        lastEpochBump = uint64(block.timestamp);
+        emit NrdEpochAdvanced(old, currentEpoch, msg.sender);
+    }
+
+    /* --- operator enrollment --- */
+    function enrollOperator(address who) external onlyOwner whenNotPaused {
+        if (who == address(0)) revert NrdOperatorNotInscribed(who);
+        isOperator[who] = true;
+        operatorLastAction[who] = block.timestamp;
+    }
+
+    function revokeOperator(address who) external onlyOwner {
+        isOperator[who] = false;
+    }
+
+    /* --- kernels --- */
+    function inscribeKernel(bytes32 witnessRoot, uint128 complexityBudget, string calldata tag)
+        external
+        whenNotPaused
+        nonReentrant
+        returns (uint64 kernelId)
+    {
+        if (!isOperator[msg.sender]) revert NrdOperatorNotInscribed(msg.sender);
+        _enforceTag(tag);
+        bytes32 tagHash = keccak256(bytes(tag));
+        if (!tagKnown[tagHash]) {
+            tagKnown[tagHash] = true;
+            emit NrdTagRegistered(tagHash, tag);
+        }
+        tagUsageCount[tagHash] += 1;
+
+        uint256 projected = NrdMathBits.saturatingAdd(globalComplexitySpent, uint256(complexityBudget));
+        if (projected > globalComplexityCap) revert NrdBudgetExhausted(projected, globalComplexityCap);
+
+        kernelId = nextKernelId;
+        unchecked {
+            nextKernelId += 1;
+        }
+        kernelWitness[kernelId] = witnessRoot;
+        kernelBudget[kernelId] = complexityBudget;
+        kernelSealed[kernelId] = false;
+        kernelEpochOfBirth[kernelId] = currentEpoch;
+
+        globalComplexitySpent = projected;
+        operatorLastAction[msg.sender] = block.timestamp;
+
+        emit NrdKernelInscribed(kernelId, witnessRoot, complexityBudget);
+    }
+
+    function attestKernel(uint64 kernelId, bytes32 newRoot) external onlyOracle whenNotPaused {
+        if (kernelId == 0 || kernelId >= nextKernelId) revert NrdKernelUnknown(kernelId);
