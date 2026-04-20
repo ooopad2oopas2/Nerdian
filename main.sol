@@ -992,3 +992,74 @@ contract Nerdian {
     function modularExp(uint256 base, uint256 e, uint256 mod) external pure returns (uint256) {
         if (mod <= 1) revert NrdManifoldGuard(mod, 2);
         uint256 result = 1;
+        base %= mod;
+        uint256 exp = e;
+        while (exp > 0) {
+            if (exp & 1 == 1) {
+                result = mulmod(result, base, mod);
+            }
+            base = mulmod(base, base, mod);
+            exp >>= 1;
+        }
+        return result;
+    }
+
+    function blumBlumShubStep(uint256 x, uint256 M) external pure returns (uint256) {
+        if (M < 4) revert NrdManifoldGuard(M, 4);
+        return mulmod(x, x, M);
+    }
+
+    function logisticMapQ16(uint256 r, uint256 x, uint256 iters) external pure returns (uint256) {
+        if (iters > 60) revert NrdManifoldGuard(iters, 60);
+        uint256 v = x;
+        for (uint256 i = 0; i < iters; i++) {
+            v = (r * v * (65536 - v)) / (65536 * 65536);
+        }
+        return v;
+    }
+
+    function householderReflectPacked(uint256 v0, uint256 v1, uint256 u0, uint256 u1, uint256 denom)
+        external
+        pure
+        returns (uint256 w0, uint256 w1)
+    {
+        if (denom == 0) revert NrdManifoldGuard(denom, 1);
+        uint256 dot = v0 * u0 + v1 * u1;
+        w0 = v0 - (2 * dot * u0) / denom;
+        w1 = v1 - (2 * dot * u1) / denom;
+    }
+
+    function polygonAreaShoelace(int256[] calldata xs, int256[] calldata ys)
+        external
+        pure
+        returns (int256 area2)
+    {
+        if (xs.length != ys.length) revert NrdArrayStride();
+        if (xs.length < 3 || xs.length > MAX_BATCH) revert NrdArrayStride();
+        uint256 n = xs.length;
+        for (uint256 i = 0; i < n; i++) {
+            uint256 j = (i + 1) % n;
+            area2 += xs[i] * ys[j];
+            area2 -= xs[j] * ys[i];
+        }
+        if (area2 < 0) area2 = -area2;
+    }
+
+    function bezierQuadY(uint256 t, uint256 y0, uint256 y1, uint256 y2) external pure returns (uint256) {
+        uint256 u = 1000 - t;
+        return (u * u * y0 + 2 * u * t * y1 + t * t * y2) / 1_000_000;
+    }
+
+    function catmullRom1D(uint256 p0, uint256 p1, uint256 p2, uint256 p3, uint256 t) external pure returns (uint256) {
+        uint256 t2 = t * t;
+        uint256 t3 = t2 * t;
+        return (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3) / 2;
+    }
+
+    function softmax2(uint256 a, uint256 b, uint256 temp) external pure returns (uint256 sa, uint256 sb) {
+        if (temp == 0) revert NrdManifoldGuard(temp, 1);
+        uint256 ea = a / temp;
+        uint256 eb = b / temp;
+        uint256 denom = ea + eb + 1;
+        sa = (ea * 1e18) / denom;
+        sb = (eb * 1e18) / denom;
