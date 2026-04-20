@@ -1631,3 +1631,57 @@ contract Nerdian {
     function frobeniusNormPacked(uint256[] calldata m) external pure returns (uint256 norm2) {
         if (m.length > MAX_BATCH) revert NrdArrayStride();
         for (uint256 i = 0; i < m.length; i++) {
+            norm2 += m[i] * m[i];
+        }
+    }
+
+    function cosineSim(int256[] calldata a, int256[] calldata b) external pure returns (int256) {
+        if (a.length != b.length || a.length == 0 || a.length > MAX_BATCH) revert NrdArrayStride();
+        int256 dot = 0;
+        uint256 na = 0;
+        uint256 nb = 0;
+        for (uint256 i = 0; i < a.length; i++) {
+            dot += a[i] * b[i];
+            int256 ai = a[i];
+            int256 bi = b[i];
+            uint256 uai = uint256(ai >= 0 ? ai : -ai);
+            uint256 ubi = uint256(bi >= 0 ? bi : -bi);
+            na += uai * uai;
+            nb += ubi * ubi;
+        }
+        if (na == 0 || nb == 0) return 0;
+        uint256 d = _sqrtApprox(na) * _sqrtApprox(nb);
+        if (d == 0) return 0;
+        return (dot * 1e18) / int256(d);
+    }
+
+    function kalmanVector2(
+        uint256 x0,
+        uint256 x1,
+        uint256 z0,
+        uint256 z1,
+        uint256 p,
+        uint256 q,
+        uint256 r
+    ) external pure returns (uint256 nx0, uint256 nx1, uint256 np) {
+        uint256 k0 = (p * 1e18) / (p + r);
+        nx0 = x0 + (k0 * (z0 - x0)) / 1e18;
+        uint256 p0 = ((1e18 - k0) * p) / 1e18 + q;
+        uint256 k1 = (p0 * 1e18) / (p0 + r);
+        nx1 = x1 + (k1 * (z1 - x1)) / 1e18;
+        np = ((1e18 - k1) * p0) / 1e18 + q;
+    }
+
+    function bundleDigest(
+        uint64 kernelId,
+        address op,
+        bytes32 tagHash,
+        uint256 nonce
+    ) external view returns (bytes32) {
+        return keccak256(abi.encodePacked(DOMAIN_SALT, kernelId, op, tagHash, nonce, block.chainid));
+    }
+
+    receive() external payable {
+        revert NrdPlainEtherRefused();
+    }
+}
