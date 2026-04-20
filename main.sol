@@ -1063,3 +1063,74 @@ contract Nerdian {
         uint256 denom = ea + eb + 1;
         sa = (ea * 1e18) / denom;
         sb = (eb * 1e18) / denom;
+    }
+
+    function entropyBernoulli(uint256 pNum, uint256 pDen) external pure returns (uint256 bitsScaled) {
+        if (pDen == 0) revert NrdManifoldGuard(pDen, 1);
+        if (pNum > pDen) revert NrdManifoldGuard(pNum, pDen);
+        uint256 qNum = pDen - pNum;
+        uint256 h = 0;
+        if (pNum > 0) {
+            h += (pNum * _log2Approx(pDen * 1e18 / pNum)) / pDen;
+        }
+        if (qNum > 0) {
+            h += (qNum * _log2Approx(pDen * 1e18 / qNum)) / pDen;
+        }
+        bitsScaled = h;
+    }
+
+    function _log2Approx(uint256 x) private pure returns (uint256) {
+        uint256 r = 0;
+        uint256 v = x;
+        for (uint256 i = 0; i < 64; i++) {
+            if (v >= 2 * 1e18) {
+                v /= 2;
+                r += 1e18;
+            } else {
+                break;
+            }
+        }
+        return r * 1e18;
+    }
+
+    function reservoirSampleHash(bytes32 seed, uint256[] calldata weights) external pure returns (uint256 idx) {
+        if (weights.length == 0) revert NrdArrayStride();
+        if (weights.length > MAX_BATCH) revert NrdArrayStride();
+        uint256 acc = uint256(seed) % weights[0];
+        idx = 0;
+        for (uint256 i = 1; i < weights.length; i++) {
+            acc += weights[i];
+            uint256 roll = uint256(keccak256(abi.encodePacked(seed, i))) % (acc + 1);
+            if (roll < weights[i]) {
+                idx = i;
+            }
+        }
+    }
+
+    function welfordOnline(int256[] calldata stream) external pure returns (int256 mean, int256 varSample) {
+        if (stream.length == 0) revert NrdArrayStride();
+        int256 n = 0;
+        int256 M = 0;
+        int256 S = 0;
+        for (uint256 i = 0; i < stream.length; i++) {
+            n += 1;
+            int256 x = stream[i];
+            int256 d = x - M;
+            M += d / n;
+            S += d * (x - M);
+        }
+        mean = M;
+        if (n > 1) {
+            varSample = S / (n - 1);
+        }
+    }
+
+    function kahanSummation(int256[] calldata terms) external pure returns (int256 sum) {
+        int256 c = 0;
+        for (uint256 i = 0; i < terms.length; i++) {
+            int256 y = terms[i] - c;
+            int256 t = sum + y;
+            c = (t - sum) - y;
+            sum = t;
+        }
+    }
