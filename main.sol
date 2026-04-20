@@ -1418,3 +1418,74 @@ contract Nerdian {
     }
 
     function hammingSphereCount(uint256 nBits, uint256 radius) external pure returns (uint256 cnt) {
+        if (nBits > 48) revert NrdHilbertCursorOverflow(nBits, 48);
+        cnt = 0;
+        for (uint256 r = 0; r <= radius && r <= nBits; r++) {
+            cnt += _binom(nBits, r);
+        }
+    }
+
+    function _binom(uint256 n, uint256 k) private pure returns (uint256) {
+        if (k > n) return 0;
+        if (k == 0 || k == n) return 1;
+        if (k > n - k) k = n - k;
+        uint256 num = 1;
+        uint256 den = 1;
+        for (uint256 i = 1; i <= k; i++) {
+            num *= (n - (k - i));
+            den *= i;
+        }
+        return num / den;
+    }
+
+    function tensorContract223(
+        uint256[2][2][3] calldata T,
+        uint256[3][2] calldata U,
+        uint256[2][2] calldata V
+    ) external pure returns (uint256 s) {
+        for (uint256 i = 0; i < 2; i++) {
+            for (uint256 j = 0; j < 2; j++) {
+                uint256 acc = 0;
+                for (uint256 k = 0; k < 3; k++) {
+                    acc += T[i][j][k] * U[k][j];
+                }
+                s += acc * V[i][j];
+            }
+        }
+    }
+
+    function cyclicCrossCorrelation(uint256[] calldata a, uint256[] calldata b) external pure returns (uint256 peak) {
+        if (a.length != b.length || a.length == 0 || a.length > 23) revert NrdArrayStride();
+        uint256 n = a.length;
+        for (uint256 lag = 0; lag < n; lag++) {
+            uint256 c = 0;
+            for (uint256 i = 0; i < n; i++) {
+                c += a[i] * b[(i + lag) % n];
+            }
+            if (c > peak) peak = c;
+        }
+    }
+
+    function savitzkyGolay3(uint256 ym1, uint256 y0, uint256 yp1) external pure returns (uint256 smoothed) {
+        smoothed = (-ym1 + 2 * y0 + yp1) / 2;
+    }
+
+    function weierstrassSigmaTerm(uint256 z2, uint256 n, uint256 w4) external pure returns (uint256) {
+        if (w4 == 0) revert NrdManifoldGuard(w4, 1);
+        return (z2 + n * n) / w4;
+    }
+
+    function ellipticLambdaSum(uint256 a, uint256 b, uint256 lam) external pure returns (uint256) {
+        uint256 den = lam * lam + a * lam + b;
+        if (den == 0) revert NrdManifoldGuard(den, 1);
+        return (3 * lam * lam + 2 * a * lam + b) / den;
+    }
+
+    function riemannSumLog(uint256 n) external pure returns (uint256 approx) {
+        if (n == 0) revert NrdManifoldGuard(n, 1);
+        for (uint256 k = 1; k <= n; k++) {
+            approx += 1e18 / k;
+        }
+    }
+
+    function brierScore(uint256[] calldata p, uint256[] calldata y) external pure returns (uint256 score) {
