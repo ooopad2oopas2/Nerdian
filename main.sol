@@ -1276,3 +1276,74 @@ contract Nerdian {
     }
 
     function rollingMinQueue(uint256[] calldata window, uint256 k) external pure returns (uint256[] memory mins) {
+        if (k == 0 || k > window.length || window.length > MAX_BATCH) revert NrdArrayStride();
+        uint256 n = window.length;
+        mins = new uint256[](n - k + 1);
+        for (uint256 i = 0; i + k <= n; i++) {
+            uint256 m = window[i];
+            for (uint256 j = 1; j < k; j++) {
+                if (window[i + j] < m) m = window[i + j];
+            }
+            mins[i] = m;
+        }
+    }
+
+    function zeta2Partial(uint256 terms) external pure returns (uint256 scaled) {
+        if (terms > 120) revert NrdManifoldGuard(terms, 120);
+        uint256 num = 0;
+        uint256 den = 1;
+        for (uint256 k = 1; k <= terms; k++) {
+            num = num * (k * k) + den;
+            den *= (k * k);
+            uint256 g = _gcd(num, den);
+            num /= g;
+            den /= g;
+        }
+        scaled = (num * 1e18) / den;
+    }
+
+    function covariancePair(int256[] calldata a, int256[] calldata b) external pure returns (int256 cov) {
+        if (a.length != b.length || a.length == 0) revert NrdArrayStride();
+        int256 sa = 0;
+        int256 sb = 0;
+        for (uint256 i = 0; i < a.length; i++) {
+            sa += a[i];
+            sb += b[i];
+        }
+        int256 n = int256(uint256(a.length));
+        for (uint256 i = 0; i < a.length; i++) {
+            cov += (a[i] * n - sa) * (b[i] * n - sb);
+        }
+        cov /= (n * n);
+    }
+
+    function softmaxN(uint256[] calldata logits, uint256 temp) external pure returns (uint256[] memory probs) {
+        if (logits.length == 0 || logits.length > 17) revert NrdArrayStride();
+        if (temp == 0) revert NrdManifoldGuard(temp, 1);
+        probs = new uint256[](logits.length);
+        uint256 sum = 0;
+        for (uint256 i = 0; i < logits.length; i++) {
+            probs[i] = logits[i] / temp + 1;
+            sum += probs[i];
+        }
+        for (uint256 j = 0; j < logits.length; j++) {
+            probs[j] = (probs[j] * 1e18) / sum;
+        }
+    }
+
+    function finiteDifferenceStencil(int256 y0, int256 ym1, int256 yp1, int256 h) external pure returns (int256 dy) {
+        dy = (yp1 - ym1) / (2 * h);
+        if (dy == 0) dy = (yp1 - 2 * y0 + ym1) / (h * h);
+    }
+
+    function rombergCell(uint256 r00, uint256 r01, uint256 k) external pure returns (uint256) {
+        uint256 num = (1 << (2 * k)) * r01 - r00;
+        uint256 den = (1 << (2 * k)) - 1;
+        return num / den;
+    }
+
+    function splineNaturalSegment(uint256 y0, uint256 y1, uint256 m0, uint256 m1, uint256 t)
+        external
+        pure
+        returns (uint256)
+    {
