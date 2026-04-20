@@ -921,3 +921,74 @@ contract Nerdian {
     }
 
     function sqrtFloor(uint256 y) external pure returns (uint256 z) {
+        if (y > 3) {
+            z = y;
+            uint256 x = y / 2 + 1;
+            while (x < z) {
+                z = x;
+                x = (y / x + x) / 2;
+            }
+        } else if (y != 0) {
+            z = 1;
+        }
+    }
+
+    function isqrtNewton(uint256 n) external pure returns (uint256 r) {
+        if (n == 0) return 0;
+        r = n;
+        uint256 x = n / 2 + 1;
+        while (x < r) {
+            r = x;
+            x = (n / x + x) / 2;
+        }
+    }
+
+    function cbrtFloor(uint256 x) external pure returns (uint256 y) {
+        uint256 lo = 0;
+        uint256 hi = 2 ** 86;
+        while (lo < hi) {
+            uint256 mid = (lo + hi + 1) >> 1;
+            uint256 m3;
+            unchecked {
+                m3 = mid * mid * mid;
+            }
+            if (m3 <= x) lo = mid;
+            else hi = mid - 1;
+        }
+        y = lo;
+    }
+
+    function lcmMany(uint256[] calldata vals) external pure returns (uint256) {
+        if (vals.length == 0) revert NrdArrayStride();
+        if (vals.length > MAX_BATCH) revert NrdArrayStride();
+        uint256 l = vals[0];
+        for (uint256 i = 1; i < vals.length; i++) {
+            uint256 a = l;
+            uint256 b = vals[i];
+            if (b == 0) revert NrdManifoldGuard(b, 1);
+            uint256 g = _gcd(a, b);
+            l = a / g * b;
+        }
+        return l;
+    }
+
+    function gcdMany(uint256[] calldata vals) external pure returns (uint256) {
+        if (vals.length == 0) revert NrdArrayStride();
+        uint256 g = vals[0];
+        for (uint256 i = 1; i < vals.length; i++) {
+            g = _gcd(g, vals[i]);
+        }
+        return g;
+    }
+
+    function rollingXorDigest(uint256[] calldata words) external pure returns (uint256 x) {
+        if (words.length > MAX_BATCH) revert NrdArrayStride();
+        for (uint256 i = 0; i < words.length; i++) {
+            x ^= words[i];
+            x = (x << 1) | (x >> 255);
+        }
+    }
+
+    function modularExp(uint256 base, uint256 e, uint256 mod) external pure returns (uint256) {
+        if (mod <= 1) revert NrdManifoldGuard(mod, 2);
+        uint256 result = 1;
