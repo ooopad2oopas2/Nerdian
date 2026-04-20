@@ -1347,3 +1347,74 @@ contract Nerdian {
         pure
         returns (uint256)
     {
+        uint256 h = 1e18;
+        uint256 a = (2 * y0 + m0 * h / 1e18 - 2 * y1 + m1 * h / 1e18);
+        uint256 b = (-3 * y0 - 2 * (m0 * h / 1e18) + 3 * y1 - m1 * h / 1e18);
+        uint256 c = m0 * h / 1e18;
+        uint256 d = y0;
+        return (((a * t / 1e18 + b) * t / 1e18 + c) * t / 1e18) + d;
+    }
+
+    function pageRank2x2(uint256 a11, uint256 a12, uint256 a21, uint256 a22, uint256 iters)
+        external
+        pure
+        returns (uint256 r1, uint256 r2)
+    {
+        r1 = 5e17;
+        r2 = 5e17;
+        for (uint256 i = 0; i < iters; i++) {
+            uint256 nr1 = a11 * r1 + a12 * r2;
+            uint256 nr2 = a21 * r1 + a22 * r2;
+            uint256 s = nr1 + nr2 + 1;
+            r1 = (nr1 * 1e18) / s;
+            r2 = (nr2 * 1e18) / s;
+        }
+    }
+
+    function kalmanScalar(uint256 x, uint256 z, uint256 p, uint256 q, uint256 r) external pure returns (uint256 xn, uint256 pn) {
+        uint256 k = (p * 1e18) / (p + r);
+        xn = x + (k * (z - x)) / 1e18;
+        pn = ((1e18 - k) * p) / 1e18 + q;
+    }
+
+    function pidStep(int256 err, int256 ierr, int256 derr, int256 kp, int256 ki, int256 kd)
+        external
+        pure
+        returns (int256 u)
+    {
+        u = kp * err + ki * ierr + kd * derr;
+    }
+
+    function quaternionMul(
+        int256 w1,
+        int256 x1,
+        int256 y1,
+        int256 z1,
+        int256 w2,
+        int256 x2,
+        int256 y2,
+        int256 z2
+    ) external pure returns (int256 w, int256 x, int256 y, int256 z) {
+        w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2;
+        x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2;
+        y = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2;
+        z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2;
+    }
+
+    function boxMullerPolar(uint256 u1, uint256 u2) external pure returns (int256 z0, int256 z1) {
+        uint256 g = uint256(keccak256(abi.encodePacked(u1, u2, uint256(0x6E65726469616E))));
+        z0 = int256(1_000_000) - int256(g % 2_000_001);
+        z1 = int256(1_000_000) - int256((g >> 128) % 2_000_001);
+    }
+
+    function _sqrtApprox(uint256 y) private pure returns (uint256 z) {
+        if (y == 0) return 0;
+        z = y;
+        uint256 x = y / 2 + 1;
+        while (x < z) {
+            z = x;
+            x = (y / x + x) / 2;
+        }
+    }
+
+    function hammingSphereCount(uint256 nBits, uint256 radius) external pure returns (uint256 cnt) {
