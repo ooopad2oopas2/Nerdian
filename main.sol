@@ -1205,3 +1205,74 @@ contract Nerdian {
                 if (idx < 0) idx = -idx;
                 if (uint256(idx) >= n) idx = int256(2 * int256(n - 1) - idx);
                 acc += signal[uint256(idx)] * kernel[j];
+            }
+            out[i] = acc;
+        }
+    }
+
+    function dftMagnitude2(uint256[] calldata re, uint256[] calldata im) external pure returns (uint256 energy) {
+        if (re.length != im.length) revert NrdArrayStride();
+        if (re.length > 17) revert NrdManifoldGuard(re.length, 17);
+        for (uint256 k = 0; k < re.length; k++) {
+            energy += re[k] * re[k] + im[k] * im[k];
+        }
+    }
+
+    function levenshteinBound(bytes memory a, bytes memory b, uint256 maxDist) external pure returns (uint256 dist) {
+        if (a.length > 32 || b.length > 32) revert NrdTagLength(a.length, 32);
+        uint256 la = a.length;
+        uint256 lb = b.length;
+        uint256[33] memory row;
+        for (uint256 j = 0; j <= lb; j++) row[j] = j;
+        for (uint256 i = 1; i <= la; i++) {
+            uint256 prev = row[0];
+            row[0] = i;
+            for (uint256 j = 1; j <= lb; j++) {
+                uint256 tmp = row[j];
+                uint256 cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                row[j] = _min3(row[j] + 1, row[j - 1] + 1, prev + cost);
+                prev = tmp;
+            }
+            if (row[lb] > maxDist) return maxDist + 1;
+        }
+        dist = row[lb];
+    }
+
+    function _min3(uint256 x, uint256 y, uint256 z) private pure returns (uint256) {
+        uint256 m = x < y ? x : y;
+        return m < z ? m : z;
+    }
+
+    function longestIncreasingSubseqLen(uint256[] calldata seq) external pure returns (uint256 best) {
+        if (seq.length > MAX_BATCH) revert NrdArrayStride();
+        uint256[] memory tail = new uint256[](seq.length);
+        uint256 len = 0;
+        for (uint256 i = 0; i < seq.length; i++) {
+            uint256 x = seq[i];
+            uint256 lo = 0;
+            uint256 hi = len;
+            while (lo < hi) {
+                uint256 mid = (lo + hi) >> 1;
+                if (tail[mid] < x) lo = mid + 1;
+                else hi = mid;
+            }
+            tail[lo] = x;
+            if (lo == len) len++;
+        }
+        best = len;
+    }
+
+    function knuthMorrisPrefix(bytes memory pat) external pure returns (uint256[] memory pi) {
+        uint256 m = pat.length;
+        pi = new uint256[](m);
+        uint256 k = 0;
+        for (uint256 q = 1; q < m; q++) {
+            while (k > 0 && pat[k] != pat[q]) {
+                k = pi[k - 1];
+            }
+            if (pat[k] == pat[q]) k++;
+            pi[q] = k;
+        }
+    }
+
+    function rollingMinQueue(uint256[] calldata window, uint256 k) external pure returns (uint256[] memory mins) {
