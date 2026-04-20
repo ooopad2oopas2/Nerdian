@@ -1489,3 +1489,74 @@ contract Nerdian {
     }
 
     function brierScore(uint256[] calldata p, uint256[] calldata y) external pure returns (uint256 score) {
+        if (p.length != y.length || p.length > MAX_BATCH) revert NrdArrayStride();
+        for (uint256 i = 0; i < p.length; i++) {
+            int256 d = int256(p[i]) - int256(y[i]);
+            score += uint256(d * d);
+        }
+        score /= p.length;
+    }
+
+    function giniCoefficient(uint256[] calldata values) external pure returns (uint256 g) {
+        if (values.length < 2 || values.length > MAX_BATCH) revert NrdArrayStride();
+        uint256 n = values.length;
+        uint256 sum = 0;
+        for (uint256 i = 0; i < n; i++) sum += values[i];
+        if (sum == 0) return 0;
+        uint256 num = 0;
+        for (uint256 i = 0; i < n; i++) {
+            for (uint256 j = 0; j < n; j++) {
+                if (values[i] > values[j]) num += values[i] - values[j];
+            }
+        }
+        g = num / (n * sum);
+    }
+
+    function earthMovers1D(uint256[] calldata w1, uint256[] calldata w2) external pure returns (uint256 emd) {
+        if (w1.length != w2.length || w1.length == 0 || w1.length > MAX_BATCH) revert NrdArrayStride();
+        int256 acc = 0;
+        int256 carry = 0;
+        for (uint256 i = 0; i < w1.length; i++) {
+            carry += int256(w1[i]) - int256(w2[i]);
+            acc += carry > 0 ? carry : -carry;
+        }
+        emd = uint256(acc);
+    }
+
+    function mutualInformationBinary(uint256 n00, uint256 n01, uint256 n10, uint256 n11) external pure returns (uint256 mi) {
+        uint256 n = n00 + n01 + n10 + n11 + 1;
+        uint256 px0 = (n00 + n01) * 1e18 / n;
+        uint256 px1 = (n10 + n11) * 1e18 / n;
+        uint256 py0 = (n00 + n10) * 1e18 / n;
+        uint256 py1 = (n01 + n11) * 1e18 / n;
+        mi += _miTerm(n00 * 1e18 / n, px0, py0);
+        mi += _miTerm(n01 * 1e18 / n, px1, py0);
+        mi += _miTerm(n10 * 1e18 / n, px0, py1);
+        mi += _miTerm(n11 * 1e18 / n, px1, py1);
+    }
+
+    function _miTerm(uint256 pxy, uint256 px, uint256 py) private pure returns (uint256) {
+        if (pxy == 0 || px == 0 || py == 0) return 0;
+        uint256 q = (pxy * 1e18) / (px * py / 1e18);
+        return pxy * _log2Approx(q);
+    }
+
+    function softmaxTemperatureSchedule(uint256 t0, uint256 alpha, uint256 step) external pure returns (uint256) {
+        return (t0 * 1e18) / (1e18 + alpha * step);
+    }
+
+    function ridgeRegression2x2(
+        uint256 sxx,
+        uint256 sxy,
+        uint256 syy,
+        uint256 lam
+    ) external pure returns (int256 w1, int256 w2) {
+        uint256 det = sxx * syy - sxy * sxy + lam * (sxx + syy) + lam * lam;
+        if (det == 0) revert NrdManifoldGuard(det, 1);
+        w1 = int256((syy * sxy) / det);
+        w2 = int256((sxx * sxy) / det);
+    }
+
+    function powerIteration2(uint256 a00, uint256 a01, uint256 a10, uint256 a11, uint256 iters)
+        external
+        pure
