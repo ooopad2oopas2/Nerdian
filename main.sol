@@ -1560,3 +1560,74 @@ contract Nerdian {
     function powerIteration2(uint256 a00, uint256 a01, uint256 a10, uint256 a11, uint256 iters)
         external
         pure
+        returns (uint256 v0, uint256 v1)
+    {
+        v0 = 1;
+        v1 = 1;
+        for (uint256 i = 0; i < iters; i++) {
+            uint256 nv0 = a00 * v0 + a01 * v1;
+            uint256 nv1 = a10 * v0 + a11 * v1;
+            uint256 norm = nv0 + nv1 + 1;
+            v0 = (nv0 * 1e18) / norm;
+            v1 = (nv1 * 1e18) / norm;
+        }
+    }
+
+    function qrGram2(uint256 a00, uint256 a01, uint256 a10, uint256 a11)
+        external
+        pure
+        returns (uint256 q00, uint256 q01, uint256 q10, uint256 q11, uint256 r00, uint256 r01, uint256 r11)
+    {
+        r00 = _sqrtApprox(a00 * a00 + a10 * a10);
+        if (r00 == 0) revert NrdManifoldGuard(r00, 1);
+        q00 = (a00 * 1e18) / r00;
+        q10 = (a10 * 1e18) / r00;
+        r01 = (a01 * q00 + a11 * q10) / 1e18;
+        uint256 u0 = a01 - (r01 * q00) / 1e18;
+        uint256 u1 = a11 - (r01 * q10) / 1e18;
+        r11 = _sqrtApprox(u0 * u0 + u1 * u1);
+        if (r11 == 0) {
+            q01 = 0;
+            q11 = 1e18;
+        } else {
+            q01 = (u0 * 1e18) / r11;
+            q11 = (u1 * 1e18) / r11;
+        }
+    }
+
+    function cholesky2(uint256 a00, uint256 a01, uint256 a11)
+        external
+        pure
+        returns (uint256 l00, uint256 l10, uint256 l11)
+    {
+        l00 = _sqrtApprox(a00);
+        if (l00 == 0) revert NrdManifoldGuard(l00, 1);
+        l10 = (a01 * 1e18) / l00;
+        uint256 inside = a11 - (l10 * l10) / 1e18;
+        l11 = _sqrtApprox(inside);
+    }
+
+    function determinant3(
+        int256 a00,
+        int256 a01,
+        int256 a02,
+        int256 a10,
+        int256 a11,
+        int256 a12,
+        int256 a20,
+        int256 a21,
+        int256 a22
+    ) external pure returns (int256 det) {
+        det =
+            a00 * (a11 * a22 - a12 * a21) - a01 * (a10 * a22 - a12 * a20) + a02 * (a10 * a21 - a11 * a20);
+    }
+
+    function tracePow2(int256 a00, int256 a01, int256 a10, int256 a11) external pure returns (int256 tr) {
+        int256 b00 = a00 * a00 + a01 * a10;
+        int256 b11 = a10 * a01 + a11 * a11;
+        tr = b00 + b11;
+    }
+
+    function frobeniusNormPacked(uint256[] calldata m) external pure returns (uint256 norm2) {
+        if (m.length > MAX_BATCH) revert NrdArrayStride();
+        for (uint256 i = 0; i < m.length; i++) {
