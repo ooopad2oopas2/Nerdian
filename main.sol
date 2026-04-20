@@ -1134,3 +1134,74 @@ contract Nerdian {
             sum = t;
         }
     }
+
+    function hornerPoly(int256[] calldata coeffs, int256 x) external pure returns (int256 y) {
+        if (coeffs.length == 0) revert NrdArrayStride();
+        y = coeffs[0];
+        for (uint256 i = 1; i < coeffs.length; i++) {
+            y = y * x + coeffs[i];
+        }
+    }
+
+    function newtonSqrtIter(uint256 S, uint256 x0, uint256 iters) external pure returns (uint256 x) {
+        x = x0;
+        if (S == 0) return 0;
+        for (uint256 i = 0; i < iters; i++) {
+            x = (x + S / x) >> 1;
+        }
+    }
+
+    function bisectionRoot(int256 lo, int256 hi, int256 fa, int256 fb) external pure returns (int256 mid) {
+        if (fa * fb > 0) revert NrdWitnessVectorMismatch(bytes32(uint256(fa)), bytes32(uint256(fb)));
+        for (uint256 i = 0; i < 48; i++) {
+            mid = (lo + hi) >> 1;
+            if (mid == lo || mid == hi) break;
+            int256 fm = mid;
+            if (fa * fm <= 0) {
+                hi = mid;
+                fb = fm;
+            } else {
+                lo = mid;
+                fa = fm;
+            }
+        }
+    }
+
+    function simpsonIntegral(uint256 a, uint256 b, uint256 fa, uint256 fb, uint256 fc) external pure returns (uint256) {
+        return ((b - a) * (fa + 4 * fc + fb)) / 6;
+    }
+
+    function trapezoidStack(uint256[] calldata ys, uint256 h) external pure returns (uint256 area) {
+        if (ys.length < 2 || ys.length > MAX_BATCH) revert NrdArrayStride();
+        for (uint256 i = 0; i < ys.length - 1; i++) {
+            area += h * (ys[i] + ys[i + 1]) / 2;
+        }
+    }
+
+    function rungeKutta4Step(int256 x, int256 y, int256 h, int256 k1, int256 k2, int256 k3, int256 k4)
+        external
+        pure
+        returns (int256 yNext, int256 xNext)
+    {
+        yNext = y + (h * (k1 + 2 * k2 + 2 * k3 + k4)) / 6;
+        xNext = x + h;
+    }
+
+    function conv1dReflect(uint256[] calldata signal, uint256[] calldata kernel)
+        external
+        pure
+        returns (uint256[] memory out)
+    {
+        if (signal.length == 0 || kernel.length == 0) revert NrdArrayStride();
+        if (kernel.length > signal.length) revert NrdArrayStride();
+        uint256 n = signal.length;
+        uint256 m = kernel.length;
+        out = new uint256[](n);
+        uint256 pad = m / 2;
+        for (uint256 i = 0; i < n; i++) {
+            uint256 acc = 0;
+            for (uint256 j = 0; j < m; j++) {
+                int256 idx = int256(i + j) - int256(pad);
+                if (idx < 0) idx = -idx;
+                if (uint256(idx) >= n) idx = int256(2 * int256(n - 1) - idx);
+                acc += signal[uint256(idx)] * kernel[j];
